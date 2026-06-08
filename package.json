@@ -1,0 +1,48 @@
+{
+  "name": "my-ts-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:e2e": "node tests/auth-e2e.js",
+    "test:e2e:ui": "npx playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "framer-motion": "^12.40.0",
+    "jsonwebtoken": "^9.0.3",
+    "leaflet": "^1.9.4",
+    "next": "^15.5.18",
+    "pg": "^8.21.0",
+    "react": "^19.2.6",
+    "react-countup": "^6.5.3",
+    "react-dom": "^19.2.6",
+    "react-icons": "^5.6.0",
+    "react-leaflet": "^5.0.0",
+    "recharts": "^3.8.1",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.37.0",
+    "@types/node": "20.17.6",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.5.0",
+    "playwright": "^1.37.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^6.0.3"
+  },
+  "type": "commonjs"
+}

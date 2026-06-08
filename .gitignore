@@ -1,0 +1,17 @@
+node_modules
+# Keep environment variables out of version control
+.env
+.env.local
+
+# Next.js build artifacts
+.next
+
+test-results/
+
+# Local logs
+*.log
+/generated/prisma
+
+# Local fallback database
+*.sqlite
+*.sqlite3

@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Pickup {
+  id                    Int                 @id @default(autoincrement())
+  userId                Int?                @map("user_id")
+  name                  String
+  wasteType             String              @map("waste_type")
+  quantity              String
+  location              String
+  status                String              @default("Pending")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  adminNotifications    AdminNotification[]
+
+  @@map("pickups")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  pickups   Pickup[]
+  redemptions RewardRedemption[]
+
+  @@map("users")
+}
+
+model AdminNotification {
+  id        Int      @id @default(autoincrement())
+  pickupId  Int?     @map("pickup_id")
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  pickup    Pickup?  @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+
+  @@map("admin_notifications")
+}
+
+model RewardRedemption {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  rewardName  String   @map("reward_name")
+  pointsSpent Int      @map("points_spent")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reward_redemptions")
+}
