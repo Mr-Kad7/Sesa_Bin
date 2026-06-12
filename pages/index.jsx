@@ -14,6 +14,7 @@ import Testimonials from "./Testimonials";
 import Impact from "./Impact";
 import CallToAction from "./CallToAction";
 import ScrollToTop from "./ScrollToTop";
+import UserDashboard from "./UserDashboard";
 
 export default function Home() {
   const [showLogin, setShowLogin] = useState(false);
@@ -25,6 +26,15 @@ export default function Home() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
   const [scheduleSuccess, setScheduleSuccess] = useState("");
+
+  const [userInfo, setUserInfo] = useState(null);
+  const [userPickups, setUserPickups] = useState([]);
+  const [userNotifications, setUserNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [feedbackDrafts, setFeedbackDrafts] = useState({});
+  const [userLoading, setUserLoading] = useState(false);
+  const [userError, setUserError] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState({});
 
   const [loginData, setLoginData] = useState({
     email: "",
@@ -87,6 +97,7 @@ export default function Home() {
     if (data.token) {
       localStorage.setItem("token", data.token);
       setToken(data.token);
+      setUserInfo(data.user || null);
       setShowLogin(false);
       setLoginError("");
       setLoginSuccess("Login successful");
@@ -153,6 +164,10 @@ export default function Home() {
     setShowRegister(false);
   };
 
+  const openSchedule = () => {
+    setShowSchedule(true);
+  };
+
   // Close modals on Escape
   useEffect(() => {
     const onKey = (e) => {
@@ -166,15 +181,162 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const openSchedule = () => {
-    const t = localStorage.getItem("token");
-    if (!t) {
-      setShowLogin(true);
-      setShowRegister(false);
+  const getAuthHeaders = () => {
+    const savedToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+    return savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+  };
+
+  const fetchUserPickups = async () => {
+    if (!getAuthHeaders().Authorization) return;
+    setUserLoading(true);
+    try {
+      const res = await fetch("/api/pickups", {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+      const data = await res.json();
+      setUserPickups(Array.isArray(data) ? data : data.pickups || []);
+    } catch (err) {
+      console.error(err);
+      setUserError("Failed to load your pickups.");
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
+  const fetchUserNotifications = async () => {
+    if (!getAuthHeaders().Authorization) return;
+    setNotificationsLoading(true);
+    try {
+      const res = await fetch("/api/user-notifications", {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+      const data = await res.json();
+      setUserNotifications(data.notifications || []);
+    } catch (err) {
+      console.error(err);
+      setUserError("Failed to load notifications.");
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const markUserNotificationRead = async (notificationId) => {
+    try {
+      const res = await fetch("/api/user-notifications", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ id: notificationId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Unable to mark notification read");
+      }
+      fetchUserNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleFeedbackDraftChange = (pickupId, value) => {
+    setFeedbackDrafts((prev) => ({ ...prev, [pickupId]: value }));
+  };
+
+  const submitFeedback = async (pickupId) => {
+    const feedback = (feedbackDrafts[pickupId] || "").trim();
+    if (!feedback) {
+      setFeedbackStatus((prev) => ({ ...prev, [pickupId]: "Please enter feedback before submitting." }));
       return;
     }
-    setShowSchedule(true);
+
+    try {
+      const res = await fetch("/api/pickups", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ id: pickupId, feedback }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to submit feedback");
+      }
+
+      setFeedbackStatus((prev) => ({ ...prev, [pickupId]: "Feedback saved." }));
+      setFeedbackDrafts((prev) => ({ ...prev, [pickupId]: "" }));
+      fetchUserPickups();
+    } catch (err) {
+      console.error(err);
+      setFeedbackStatus((prev) => ({ ...prev, [pickupId]: err.message || "Error saving feedback" }));
+    }
   };
+
+  const decodeToken = (tokenValue) => {
+    try {
+      const payload = tokenValue.split(".")[1] || "";
+      const padded = `${payload}${"=".repeat((4 - (payload.length % 4)) % 4)}`;
+      const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = atob(base64);
+      const json = decodeURIComponent(
+        decoded
+          .split("")
+          .map((c) => `%${(`00${c.charCodeAt(0).toString(16)}`).slice(-2)}`)
+          .join("")
+      );
+      const parsed = JSON.parse(json);
+      return {
+        ...parsed,
+        isAdmin: parsed.isAdmin || parsed.is_admin || false,
+      };
+    } catch (err) {
+      console.error("Token decode failed", err);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      setUserInfo(null);
+      setUserPickups([]);
+      setUserNotifications([]);
+      return;
+    }
+
+    const fetchUserInfo = async () => {
+      try {
+        const res = await fetch("/api/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.user) {
+          setUserInfo(data.user);
+        } else {
+          const parsed = decodeToken(token);
+          setUserInfo(parsed);
+        }
+      } catch (err) {
+        console.error(err);
+        const parsed = decodeToken(token);
+        setUserInfo(parsed);
+      }
+    };
+
+    fetchUserInfo();
+    fetchUserPickups();
+    fetchUserNotifications();
+  }, [token]);
 
   const handleSchedule = async (e) => {
     e.preventDefault();
@@ -437,12 +599,22 @@ export default function Home() {
       {/*DASHBOARD*/}
       <Reveal>
         {token ? (
-  <Dashboard darkMode={darkMode} />
-) : (
-  <div className={`text-center py-20 ${darkMode ? "bg-slate-950 text-gray-300" : "text-gray-500"}`}>
-    Please login to view dashboard
-  </div>
-)}
+          <>
+            <UserDashboard
+              darkMode={darkMode}
+              userInfo={userInfo}
+              userPickups={userPickups}
+              userNotifications={userNotifications}
+              userLoading={userLoading}
+              notificationsLoading={notificationsLoading}
+            />
+            {userInfo?.isAdmin && <Dashboard darkMode={darkMode} />}
+          </>
+        ) : (
+          <div className={`text-center py-20 ${darkMode ? "bg-slate-950 text-gray-300" : "text-gray-500"}`}>
+            Please login to view dashboard
+          </div>
+        )}
       </Reveal>
 
       {/* IMPACT */}

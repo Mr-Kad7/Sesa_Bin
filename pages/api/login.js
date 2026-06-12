@@ -52,6 +52,7 @@ module.exports = async function handler(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
+        isAdmin: user.is_admin || false,
       },
       jwtSecret(),
       {
@@ -67,6 +68,7 @@ module.exports = async function handler(req, res) {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        isAdmin: user.is_admin || false,
       },
     });
 

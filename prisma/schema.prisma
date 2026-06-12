@@ -15,9 +15,15 @@ model Pickup {
   quantity              String
   location              String
   status                String              @default("Pending")
+  collectorName         String?             @map("collector_name")
+  collectorEmail        String?             @map("collector_email")
+  eta                   String?             @map("eta")
+  lastKnownLocation     String?             @map("last_known_location")
+  feedback              String?             @map("feedback")
   createdAt             DateTime            @default(now()) @map("created_at")
   user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   adminNotifications    AdminNotification[]
+  userNotifications     UserNotification[]
 
   @@map("pickups")
 }
@@ -28,11 +34,26 @@ model User {
   email     String   @unique
   phone     String?
   password  String
+  isAdmin   Boolean  @default(false) @map("is_admin")
   createdAt DateTime @default(now()) @map("created_at")
   pickups   Pickup[]
   redemptions RewardRedemption[]
+  userNotifications UserNotification[]
 
   @@map("users")
+}
+
+model UserNotification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  pickupId  Int?     @map("pickup_id")
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pickup    Pickup?  @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+
+  @@map("user_notifications")
 }
 
 model AdminNotification {

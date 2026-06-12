@@ -28,18 +28,10 @@ module.exports = async function handler(req, res) {
     const user = authenticate(req, res);
     if (!user) return;
 
-    if (!user.isAdmin) {
-      return res.status(403).json({ error: "Admin privileges required" });
-    }
-
     if (req.method === "GET") {
       const result = await pool.query(
-        `
-        SELECT n.*, p.name, p.waste_type, p.quantity, p.location, p.status
-        FROM admin_notifications n
-        LEFT JOIN pickups p ON p.id = n.pickup_id
-        ORDER BY n.created_at DESC
-        `
+        `SELECT * FROM user_notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+        [user.id]
       );
 
       return res.status(200).json({
@@ -56,13 +48,8 @@ module.exports = async function handler(req, res) {
       }
 
       const result = await pool.query(
-        `
-        UPDATE admin_notifications
-        SET is_read = true
-        WHERE id = $1
-        RETURNING *
-        `,
-        [id]
+        `UPDATE user_notifications SET is_read = true WHERE id = $1 AND user_id = $2 RETURNING *`,
+        [id, user.id]
       );
 
       return res.status(200).json({
